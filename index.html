@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redast</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel: rgba(24, 12, 12, 0.52);
+        --border: rgba(255, 255, 255, 0.14);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.7);
+        --accent: #ef4444;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: #000;
+        overflow: hidden;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, Arial, sans-serif;
+      }
+
+      .app {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        background: #000;
+      }
+
+      video {
+        width: 100%;
+        height: 100%;
+        background: #000;
+        display: block;
+        object-fit: contain;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .drag {
+        outline: 3px solid rgba(239, 68, 68, 0.65);
+        outline-offset: -3px;
+      }
+
+      .controls {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 10px 18px 16px;
+        display: block;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0));
+        opacity: 1;
+        transition: opacity 160ms ease;
+      }
+
+      .app.hide-controls .controls {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .bar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 10px;
+        height: 44px;
+        padding: 0;
+        border-radius: 0;
+        border: none;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        box-shadow: none;
+      }
+
+      .seekrow {
+        padding: 0 2px 8px;
+      }
+
+      .btn {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: var(--text);
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        transition: transform 140ms ease, color 140ms ease, opacity 140ms ease;
+      }
+
+      .btn:hover {
+        color: rgba(255, 255, 255, 1);
+        text-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
+        transform: translateY(-1px) scale(1.04);
+      }
+
+      .btn:focus-visible {
+        outline: 2px solid rgba(239, 68, 68, 0.75);
+        outline-offset: 2px;
+      }
+
+      .btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+
+      .btn:active {
+        transform: translateY(1px);
+      }
+
+      .time {
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+        color: var(--text);
+        user-select: none;
+        min-width: 48px;
+        text-align: left;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .duration {
+        text-align: right;
+        color: rgba(255, 255, 255, 0.8);
+        min-width: 44px;
+      }
+
+      .icon {
+        width: 20px;
+        height: 20px;
+        display: block;
+        fill: currentColor;
+      }
+
+      .slider {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.22);
+        outline: none;
+      }
+
+      .seek {
+        width: 100%;
+        min-width: 0;
+        --seek-p: 0%;
+        background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--seek-p), rgba(255, 255, 255, 0.42) var(--seek-p), rgba(255, 255, 255, 0.42) 100%);
+      }
+
+      .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: var(--accent);
+        border: 2px solid rgba(0, 0, 0, 0.4);
+      }
+
+      .slider::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: var(--accent);
+        border: 2px solid rgba(0, 0, 0, 0.4);
+      }
+
+      .bigplay {
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        background: rgba(0, 0, 0, 0.18);
+      }
+
+      .bigplay .icon {
+        width: 22px;
+        height: 22px;
+      }
+
+      .volume {
+        width: 110px;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .hint {
+        position: absolute;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(18, 18, 24, 0.56);
+        color: var(--muted);
+        font-size: 12px;
+        user-select: none;
+        backdrop-filter: blur(12px);
+        opacity: 0;
+        transition: opacity 160ms ease;
+      }
+
+      .app.empty .hint {
+        opacity: 1;
+      }
+
+      .transport {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 156px;
+      }
+
+      .right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: flex-end;
+        min-width: 0;
+      }
+
+      .left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .volwrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .menuwrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .menupop {
+        position: absolute;
+        bottom: 42px;
+        right: 0;
+        width: 220px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(28, 28, 30, 0.72);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+        padding: 8px;
+        display: none;
+        animation: popIn 140ms ease;
+      }
+
+      .appdrawer {
+        position: absolute;
+        top: 0;
+        right: calc(100% + 10px);
+        width: 220px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(28, 28, 30, 0.72);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+        padding: 8px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateX(12px);
+        transition: opacity 140ms ease, transform 140ms ease, visibility 0ms linear 140ms;
+      }
+
+      .appdrawer.open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateX(0);
+        transition: opacity 140ms ease, transform 140ms ease, visibility 0ms;
+      }
+
+      .menuwrap.open .menupop {
+        display: block;
+      }
+
+      .menupop .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        user-select: none;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.92);
+        transition: background 140ms ease, transform 140ms ease;
+      }
+
+      .menupop .row:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateX(2px);
+      }
+
+      .menupop .sep {
+        height: 1px;
+        margin: 6px 6px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .menupop .speeds {
+        display: grid;
+        gap: 4px;
+        padding: 6px;
+      }
+
+      .menupop .speed {
+        border: 0;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.9);
+        text-align: left;
+        padding: 8px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        transition: background 140ms ease, transform 140ms ease;
+      }
+
+      .menupop .speed:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateX(2px);
+      }
+
+      .menupop .speed.active {
+        background: rgba(239, 68, 68, 0.16);
+        outline: 1px solid rgba(239, 68, 68, 0.35);
+      }
+
+      @keyframes popIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+
+        .appdrawer {
+          transition: none !important;
+        }
+
+        .menupop {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app empty" id="app">
+      <video id="player" playsinline></video>
+
+      <div class="hint" id="hint">Sürükle-bırak • Ctrl+O • (Boşken) çift tık</div>
+
+      <div class="controls" id="controls">
+        <div class="seekrow">
+          <input class="slider seek" id="seek" type="range" min="0" max="1000" value="0" step="1" />
+        </div>
+
+        <div class="bar">
+          <div class="left">
+            <div class="volwrap" id="volWrap">
+              <button class="btn" id="muteBtn" type="button" aria-label="Ses">
+                <svg class="icon" id="volOn" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h3l4 4V6L7 10H4zm11.5 2a4.5 4.5 0 0 0-2-3.74v7.48A4.5 4.5 0 0 0 15.5 12zM14 3.23v2.06A7.5 7.5 0 0 1 14 18.7v2.06c3.57-1.18 6-4.53 6-8.76s-2.43-7.58-6-8.77z"/></svg>
+                <svg class="icon" id="volOff" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M3.41 2.86 2 4.27l7 7H4v4h3l4 4v-6.73l5.73 5.73 1.41-1.41L3.41 2.86zM11 6 9.2 7.8 11 9.6V6z"/></svg>
+              </button>
+              <input class="slider volume" id="volume" type="range" min="0" max="1" value="1" step="0.01" aria-label="Ses Seviyesi" />
+            </div>
+          </div>
+
+          <div class="transport" aria-label="Kontroller">
+            <div class="time" id="currentTime">0:00</div>
+            <button class="btn" id="prevBtn" type="button" aria-label="Önceki">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6V6zm3.5 6 10-6v12l-10-6z"/></svg>
+            </button>
+
+            <button class="btn bigplay" id="playBtn" type="button" aria-label="Oynat / Duraklat">
+              <svg class="icon" id="playIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5z"/></svg>
+              <svg class="icon" id="pauseIcon" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
+            </button>
+
+            <button class="btn" id="nextBtn" type="button" aria-label="Sonraki">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 6h2v12h-2V6zM4.5 18V6l10 6-10 6z"/></svg>
+            </button>
+
+            <div class="time duration" id="duration">0:00</div>
+          </div>
+
+          <div class="right">
+            <div class="menuwrap" id="menuWrap">
+              <button class="btn" id="menuBtn" type="button" aria-label="Menü">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>
+              </button>
+              <div class="menupop" id="menuPop" role="menu" aria-label="Ayarlar">
+                <div class="row" id="ccToggle" role="menuitem">CC <span id="ccState">Off</span></div>
+                <div class="sep" role="separator"></div>
+                <div class="row" style="cursor: default">Speed <span id="speedLabel">1.0x</span></div>
+                <div class="speeds" id="speedList">
+                  <button class="speed" type="button" data-rate="0.5">0.5x</button>
+                  <button class="speed" type="button" data-rate="1">1.0x</button>
+                  <button class="speed" type="button" data-rate="1.25">1.25x</button>
+                  <button class="speed" type="button" data-rate="1.5">1.5x</button>
+                  <button class="speed" type="button" data-rate="2">2.0x</button>
+                </div>
+                <div class="sep" role="separator"></div>
+                <div class="row" role="menuitem" id="appMenuOpen">App <span>›</span></div>
+
+                <div class="appdrawer" id="appDrawer" role="menu" aria-label="App">
+                  <div class="row" role="menuitem" data-appcmd="reload">Reload</div>
+                  <div class="row" role="menuitem" data-appcmd="toggleDevTools">DevTools</div>
+                  <div class="row" role="menuitem" data-appcmd="quit">Quit</div>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn" id="pipBtn" type="button" aria-label="Picture in Picture">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7H5v10h14V7zm2-2v14H3V5h18zm-4 9h-6v-4h6v4z"/></svg>
+            </button>
+
+            <button class="btn" id="fsBtn" type="button" aria-label="Tam Ekran">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm0-4h2V7h3V5H5v5zm10 7h-3v2h5v-5h-2v3zm0-12V5h-5v2h3v3h2V5z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <input id="fileInput" type="file" accept="video/*" />
+    </div>
+
+    <script>
+      const fileInput = document.getElementById('fileInput');
+      const player = document.getElementById('player');
+      const app = document.getElementById('app');
+      const dropZone = app;
+      const controls = document.getElementById('controls');
+      const hint = document.getElementById('hint');
+
+      const seek = document.getElementById('seek');
+      const prevBtn = document.getElementById('prevBtn');
+      const playBtn = document.getElementById('playBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const currentTimeEl = document.getElementById('currentTime');
+      const durationEl = document.getElementById('duration');
+      const muteBtn = document.getElementById('muteBtn');
+      const volume = document.getElementById('volume');
+      const fsBtn = document.getElementById('fsBtn');
+      const pipBtn = document.getElementById('pipBtn');
+      const menuBtn = document.getElementById('menuBtn');
+      const menuWrap = document.getElementById('menuWrap');
+      const menuPop = document.getElementById('menuPop');
+      const appMenuOpen = document.getElementById('appMenuOpen');
+      const appDrawer = document.getElementById('appDrawer');
+      const ccToggle = document.getElementById('ccToggle');
+      const ccState = document.getElementById('ccState');
+      const speedLabel = document.getElementById('speedLabel');
+      const speedList = document.getElementById('speedList');
+      const volWrap = document.getElementById('volWrap');
+      const playIcon = document.getElementById('playIcon');
+      const pauseIcon = document.getElementById('pauseIcon');
+      const volOn = document.getElementById('volOn');
+      const volOff = document.getElementById('volOff');
+
+      let currentObjectUrl = null;
+      let currentFileUrl = null;
+      let currentFilePath = null;
+      let isSeeking = false;
+      let hideControlsTimer = null;
+
+      let wasPlayingBeforeSeek = false;
+      let seekRaf = null;
+
+      let neighborPrev = null;
+      let neighborNext = null;
+
+      let pendingResumeTime = null;
+
+      let videoClickTimer = null;
+
+      function resumeKey(filePath) {
+        return `vp:resume:${filePath}`;
+      }
+
+      function safeParseJSON(value) {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      function getSavedResumeTime(filePath) {
+        if (!filePath) return null;
+        const raw = localStorage.getItem(resumeKey(filePath));
+        const data = raw ? safeParseJSON(raw) : null;
+        if (!data || typeof data.t !== 'number') return null;
+        return data.t;
+      }
+
+      function setSavedResumeTime(filePath, t, duration) {
+        if (!filePath) return;
+        const payload = { t, d: duration, at: Date.now() };
+        localStorage.setItem(resumeKey(filePath), JSON.stringify(payload));
+      }
+
+      function clearSavedResumeTime(filePath) {
+        if (!filePath) return;
+        localStorage.removeItem(resumeKey(filePath));
+      }
+
+      function updateNeighborButtons() {
+        const hasApi = window.videoApp && typeof window.videoApp.getNeighbors === 'function';
+        prevBtn.disabled = !hasApi || !neighborPrev;
+        nextBtn.disabled = !hasApi || !neighborNext;
+      }
+
+      function clearVideo() {
+        player.pause();
+        player.removeAttribute('src');
+        player.load();
+
+        if (currentObjectUrl) {
+          URL.revokeObjectURL(currentObjectUrl);
+          currentObjectUrl = null;
+        }
+
+        currentFileUrl = null;
+        currentFilePath = null;
+        neighborPrev = null;
+        neighborNext = null;
+
+        fileInput.value = '';
+        document.title = 'Redast';
+        app.classList.add('empty');
+        seek.value = '0';
+        updateTimeUI();
+        updateNeighborButtons();
+      }
+
+      function pathToFileUrl(filePath) {
+        const normalized = String(filePath).replace(/\\/g, '/');
+        const prefixed = normalized.startsWith('/') ? normalized : `/${normalized}`;
+        return encodeURI(`file://${prefixed}`);
+      }
+
+      function tryAutoplay() {
+        const playPromise = player.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {
+          });
+        }
+      }
+
+      function formatTime(seconds) {
+        if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        if (h > 0) return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+
+      function updatePlayUI() {
+        playIcon.style.display = player.paused ? 'block' : 'none';
+        pauseIcon.style.display = player.paused ? 'none' : 'block';
+      }
+
+      function updateMuteUI() {
+        const muted = player.muted || player.volume === 0;
+        volOn.style.display = muted ? 'none' : 'block';
+        volOff.style.display = muted ? 'block' : 'none';
+      }
+
+      function updateTimeUI() {
+        currentTimeEl.textContent = formatTime(player.currentTime);
+        durationEl.textContent = formatTime(player.duration);
+      }
+
+      function updateSeekUI() {
+        if (isSeeking) return;
+        const d = player.duration;
+        if (!Number.isFinite(d) || d <= 0) {
+          seek.value = '0';
+          seek.style.setProperty('--seek-p', '0%');
+          return;
+        }
+        const v = Math.round((player.currentTime / d) * 1000);
+        const clamped = Math.min(1000, Math.max(0, v));
+        seek.value = String(clamped);
+        seek.style.setProperty('--seek-p', `${(clamped / 1000) * 100}%`);
+      }
+
+      function updateSeekFillFromSlider() {
+        const raw = Number(seek.value);
+        const clamped = Math.min(1000, Math.max(0, Number.isFinite(raw) ? raw : 0));
+        seek.style.setProperty('--seek-p', `${(clamped / 1000) * 100}%`);
+      }
+
+      function showControlsTemporarily() {
+        app.classList.remove('hide-controls');
+        if (hideControlsTimer) window.clearTimeout(hideControlsTimer);
+        if (!app.classList.contains('empty') && !player.paused) {
+          hideControlsTimer = window.setTimeout(() => {
+            app.classList.add('hide-controls');
+          }, 1600);
+        }
+      }
+
+      function togglePlay() {
+        if (!player.src) return;
+        if (player.paused) player.play();
+        else player.pause();
+      }
+
+      function setVolumeClamped(nextVolume) {
+        const v = Math.min(1, Math.max(0, Number(nextVolume)));
+        player.volume = v;
+        if (v > 0) player.muted = false;
+        volume.value = String(v);
+        updateMuteUI();
+      }
+
+      function toggleFullscreen() {
+        const isFs = document.fullscreenElement;
+        if (!isFs) app.requestFullscreen();
+        else document.exitFullscreen();
+      }
+
+      function setPlaybackRate(rate) {
+        const r = Number(rate);
+        if (!Number.isFinite(r) || r <= 0) return;
+        player.playbackRate = r;
+        speedLabel.textContent = `${r.toFixed(r % 1 === 0 ? 0 : 2)}x`;
+        const buttons = speedList.querySelectorAll('button[data-rate]');
+        buttons.forEach((b) => {
+          b.classList.toggle('active', Number(b.dataset.rate) === r);
+        });
+        localStorage.setItem('vp:speed', String(r));
+      }
+
+      function initPlaybackRate() {
+        const raw = localStorage.getItem('vp:speed');
+        const r = raw ? Number(raw) : 1;
+        setPlaybackRate(Number.isFinite(r) && r > 0 ? r : 1);
+      }
+
+      function updateCcState() {
+        const tracks = player.textTracks;
+        if (!tracks || tracks.length === 0) {
+          ccState.textContent = 'Off';
+          return;
+        }
+        ccState.textContent = tracks[0].mode === 'showing' ? 'On' : 'Off';
+      }
+
+      async function refreshNeighbors() {
+        neighborPrev = null;
+        neighborNext = null;
+
+        if (!(window.videoApp && typeof window.videoApp.getNeighbors === 'function')) {
+          updateNeighborButtons();
+          return;
+        }
+
+        if (!currentFilePath) {
+          updateNeighborButtons();
+          return;
+        }
+
+        const res = await window.videoApp.getNeighbors(currentFilePath);
+        neighborPrev = res && res.prev ? res.prev : null;
+        neighborNext = res && res.next ? res.next : null;
+        updateNeighborButtons();
+      }
+
+      async function openVideoSource(source, options = {}) {
+        const useResume = options.useResume !== false;
+        if (!source) return;
+
+        if (currentObjectUrl) {
+          URL.revokeObjectURL(currentObjectUrl);
+          currentObjectUrl = null;
+        }
+        currentFileUrl = null;
+
+        if (typeof source === 'string') {
+          const fileUrl = pathToFileUrl(source);
+          currentFileUrl = fileUrl;
+          currentFilePath = source;
+          player.src = fileUrl;
+          document.title = source.split(/\\|\//).pop() || 'Redast';
+          app.classList.remove('empty');
+          tryAutoplay();
+          pendingResumeTime = useResume && currentFilePath ? getSavedResumeTime(currentFilePath) : null;
+          await refreshNeighbors();
+          return;
+        }
+
+        const file = source;
+        if (file.type && !file.type.startsWith('video/')) {
+          return;
+        }
+
+        currentObjectUrl = URL.createObjectURL(file);
+        player.src = currentObjectUrl;
+        document.title = file.name || 'Video Player';
+        app.classList.remove('empty');
+
+        const maybePath = typeof file.path === 'string' ? file.path : null;
+        currentFilePath = maybePath;
+        tryAutoplay();
+        pendingResumeTime = useResume && currentFilePath ? getSavedResumeTime(currentFilePath) : null;
+        await refreshNeighbors();
+      }
+
+      async function goPrev() {
+        if (!neighborPrev) return;
+        await openVideoSource(neighborPrev, { useResume: false });
+      }
+
+      async function goNext() {
+        if (!neighborNext) return;
+        await openVideoSource(neighborNext, { useResume: false });
+      }
+
+      function openViaDialogOrFileInput() {
+        if (window.api && window.api.openVideo) {
+          window.api.openVideo().then((filePath) => {
+            if (!filePath) return;
+            loadVideoFromPath(filePath);
+          });
+          return;
+        }
+
+        fileInput.click();
+      }
+
+      player.addEventListener('click', () => {
+        if (!player.src) {
+          openViaDialogOrFileInput();
+          return;
+        }
+
+        if (videoClickTimer) window.clearTimeout(videoClickTimer);
+        videoClickTimer = window.setTimeout(() => {
+          videoClickTimer = null;
+          togglePlay();
+          showControlsTemporarily();
+        }, 180);
+      });
+
+      player.addEventListener('dblclick', () => {
+        if (videoClickTimer) {
+          window.clearTimeout(videoClickTimer);
+          videoClickTimer = null;
+        }
+        if (!player.src) {
+          openViaDialogOrFileInput();
+          return;
+        }
+        toggleFullscreen();
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.isContentEditable)) return;
+
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
+          e.preventDefault();
+          openViaDialogOrFileInput();
+          return;
+        }
+
+        if (e.key === ' ' || e.code === 'Space') {
+          e.preventDefault();
+          togglePlay();
+          return;
+        }
+
+        if (e.key === 'f' || e.key === 'F') {
+          toggleFullscreen();
+          return;
+        }
+
+        if (e.key === 'm' || e.key === 'M') {
+          player.muted = !player.muted;
+          updateMuteUI();
+          showControlsTemporarily();
+          return;
+        }
+
+        if (e.key === 'ArrowLeft') {
+          if (player.src) player.currentTime = Math.max(0, player.currentTime - 5);
+          return;
+        }
+
+        if (e.key === 'ArrowRight') {
+          if (player.src && Number.isFinite(player.duration)) player.currentTime = Math.min(player.duration, player.currentTime + 5);
+          return;
+        }
+
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!player.src) return;
+          setVolumeClamped(player.volume + 0.05);
+          showControlsTemporarily();
+          return;
+        }
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (!player.src) return;
+          setVolumeClamped(player.volume - 0.05);
+          showControlsTemporarily();
+          return;
+        }
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        openVideoSource(file);
+      });
+
+      player.addEventListener('loadeddata', () => {
+        if (!player.src) return;
+        updatePlayUI();
+        updateMuteUI();
+        updateTimeUI();
+        updateSeekUI();
+        showControlsTemporarily();
+      });
+
+      player.addEventListener('loadedmetadata', () => {
+        updateTimeUI();
+        updateSeekUI();
+        updateCcState();
+
+        if (pendingResumeTime && Number.isFinite(player.duration) && player.duration > 0) {
+          const t = Math.min(player.duration - 1, Math.max(0, pendingResumeTime));
+          if (t > 3 && t < player.duration - 2) {
+            player.currentTime = t;
+          }
+        }
+        pendingResumeTime = null;
+      });
+
+      player.addEventListener('timeupdate', () => {
+        updateTimeUI();
+        updateSeekUI();
+
+        if (currentFilePath && Number.isFinite(player.currentTime) && Number.isFinite(player.duration) && player.duration > 0) {
+          const nearEnd = player.duration - player.currentTime < 2;
+          if (nearEnd) {
+            clearSavedResumeTime(currentFilePath);
+          } else {
+            if (!player.paused) setSavedResumeTime(currentFilePath, player.currentTime, player.duration);
+          }
+        }
+      });
+
+      player.addEventListener('ended', () => {
+        if (currentFilePath) clearSavedResumeTime(currentFilePath);
+      });
+
+      player.addEventListener('play', () => {
+        updatePlayUI();
+        showControlsTemporarily();
+      });
+
+      player.addEventListener('pause', () => {
+        updatePlayUI();
+        app.classList.remove('hide-controls');
+      });
+
+      player.addEventListener('error', () => {
+        clearVideo();
+      });
+
+      playBtn.addEventListener('click', () => {
+        togglePlay();
+        showControlsTemporarily();
+      });
+
+      prevBtn.addEventListener('click', async () => {
+        await goPrev();
+        showControlsTemporarily();
+      });
+
+      nextBtn.addEventListener('click', async () => {
+        await goNext();
+        showControlsTemporarily();
+      });
+
+      muteBtn.addEventListener('click', () => {
+        player.muted = !player.muted;
+        updateMuteUI();
+        showControlsTemporarily();
+      });
+
+      volume.addEventListener('input', () => {
+        player.volume = Number(volume.value);
+        if (player.volume > 0) player.muted = false;
+        updateMuteUI();
+        showControlsTemporarily();
+      });
+
+      ccToggle.addEventListener('click', () => {
+        const tracks = player.textTracks;
+        if (!tracks || tracks.length === 0) return;
+        const nextMode = tracks[0].mode === 'showing' ? 'disabled' : 'showing';
+        for (let i = 0; i < tracks.length; i += 1) tracks[i].mode = nextMode;
+        updateCcState();
+        showControlsTemporarily();
+      });
+
+      speedList.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLElement)) return;
+        const btn = t.closest('button[data-rate]');
+        if (!btn) return;
+        setPlaybackRate(Number(btn.dataset.rate));
+        showControlsTemporarily();
+      });
+
+      pipBtn.addEventListener('click', async () => {
+        try {
+          if (!document.pictureInPictureElement) await player.requestPictureInPicture();
+          else await document.exitPictureInPicture();
+        } catch {
+        }
+        showControlsTemporarily();
+      });
+
+      menuBtn.addEventListener('click', () => {
+        menuWrap.classList.toggle('open');
+        if (!menuWrap.classList.contains('open')) appDrawer.classList.remove('open');
+        showControlsTemporarily();
+      });
+
+      appMenuOpen.addEventListener('click', () => {
+        appDrawer.classList.toggle('open');
+        showControlsTemporarily();
+      });
+
+      appDrawer.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLElement)) return;
+        const row = t.closest('[data-appcmd]');
+        if (!row) return;
+        const cmd = row.getAttribute('data-appcmd');
+        if (!cmd) return;
+        if (window.videoApp && typeof window.videoApp.appCommand === 'function') {
+          window.videoApp.appCommand(cmd);
+        }
+        appDrawer.classList.remove('open');
+        menuWrap.classList.remove('open');
+      });
+
+      window.addEventListener('pointerdown', (e) => {
+        if (!menuWrap.classList.contains('open')) return;
+        if (menuWrap.contains(e.target)) return;
+        menuWrap.classList.remove('open');
+        appDrawer.classList.remove('open');
+      }, { capture: true });
+
+      function togglePip() {
+        return (async () => {
+          try {
+            if (!document.pictureInPictureElement) await player.requestPictureInPicture();
+            else await document.exitPictureInPicture();
+          } catch {
+          }
+        })();
+      }
+
+      player.addEventListener('contextmenu', (e) => {
+        if (!(window.videoApp && typeof window.videoApp.showVideoContext === 'function')) return;
+        e.preventDefault();
+        window.videoApp.showVideoContext({
+          x: e.x,
+          y: e.y,
+          currentFilePath,
+          prevPath: neighborPrev,
+          nextPath: neighborNext
+        });
+      });
+
+      if (window.videoApp && typeof window.videoApp.onOpenFile === 'function') {
+        window.videoApp.onOpenFile(async (filePath) => {
+          if (!filePath || typeof filePath !== 'string') return;
+          await openVideoSource(filePath);
+          showControlsTemporarily();
+        });
+      }
+
+      if (window.videoApp && typeof window.videoApp.onMenuCommand === 'function') {
+        window.videoApp.onMenuCommand(async (payload) => {
+          if (!payload || typeof payload !== 'object') return;
+          if (payload.cmd === 'openPath' && payload.path) {
+            await openVideoSource(payload.path);
+            return;
+          }
+          if (payload.cmd === 'openPathNoResume' && payload.path) {
+            await openVideoSource(payload.path, { useResume: false });
+            return;
+          }
+          if (payload.cmd === 'toggleFullscreen') {
+            toggleFullscreen();
+            return;
+          }
+          if (payload.cmd === 'togglePip') {
+            await togglePip();
+            return;
+          }
+        });
+      }
+
+      window.addEventListener('keydown', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.isContentEditable)) return;
+        if (e.key === '[') {
+          const rates = [0.5, 1, 1.25, 1.5, 2];
+          const i = rates.indexOf(player.playbackRate);
+          setPlaybackRate(rates[Math.max(0, i - 1)] || rates[0]);
+        }
+        if (e.key === ']') {
+          const rates = [0.5, 1, 1.25, 1.5, 2];
+          const i = rates.indexOf(player.playbackRate);
+          setPlaybackRate(rates[Math.min(rates.length - 1, i + 1)] || rates[rates.length - 1]);
+        }
+      });
+
+      fsBtn.addEventListener('click', () => {
+        toggleFullscreen();
+        showControlsTemporarily();
+      });
+
+      seek.addEventListener('mousedown', () => {
+        if (!player.src) return;
+        isSeeking = true;
+        wasPlayingBeforeSeek = !player.paused;
+        player.pause();
+      });
+
+      seek.addEventListener('touchstart', () => {
+        if (!player.src) return;
+        isSeeking = true;
+        wasPlayingBeforeSeek = !player.paused;
+        player.pause();
+      }, { passive: true });
+
+      function commitSeek() {
+        const d = player.duration;
+        if (!Number.isFinite(d) || d <= 0) return;
+        const t = (Number(seek.value) / 1000) * d;
+        player.currentTime = Math.min(d, Math.max(0, t));
+      }
+
+      function scrubToSeekPosition() {
+        if (!player.src) return;
+        if (seekRaf) return;
+        seekRaf = window.requestAnimationFrame(() => {
+          seekRaf = null;
+          commitSeek();
+          updateTimeUI();
+        });
+      }
+
+      seek.addEventListener('input', () => {
+        if (!player.src) return;
+        updateSeekFillFromSlider();
+        scrubToSeekPosition();
+        showControlsTemporarily();
+      });
+
+      seek.addEventListener('change', () => {
+        if (!player.src) return;
+        commitSeek();
+        isSeeking = false;
+        if (wasPlayingBeforeSeek) player.play();
+        showControlsTemporarily();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (!isSeeking) return;
+        isSeeking = false;
+        if (player.src) commitSeek();
+        if (wasPlayingBeforeSeek) player.play();
+      });
+
+      window.addEventListener('touchend', () => {
+        if (!isSeeking) return;
+        isSeeking = false;
+        if (player.src) commitSeek();
+        if (wasPlayingBeforeSeek) player.play();
+      }, { passive: true });
+
+      document.addEventListener('fullscreenchange', () => {
+        showControlsTemporarily();
+      });
+
+      app.addEventListener('mousemove', () => {
+        showControlsTemporarily();
+      });
+
+      controls.addEventListener('mousemove', () => {
+        showControlsTemporarily();
+      });
+
+      function isFileDragEvent(e) {
+        return e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+      }
+
+      dropZone.addEventListener('dragenter', (e) => {
+        if (!isFileDragEvent(e)) return;
+        e.preventDefault();
+        dropZone.classList.add('drag');
+      });
+
+      dropZone.addEventListener('dragover', (e) => {
+        if (!isFileDragEvent(e)) return;
+        e.preventDefault();
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        if (!isFileDragEvent(e)) return;
+        e.preventDefault();
+        dropZone.classList.remove('drag');
+
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!file) return;
+        openVideoSource(file);
+      });
+
+      window.addEventListener('beforeunload', () => {
+        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+      });
+
+      clearVideo();
+      updateNeighborButtons();
+      initPlaybackRate();
+      updateCcState();
+    </script>
+  </body>
+</html>
